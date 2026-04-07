@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import Papa from 'papaparse';
 import { 
   Plus, 
   Search, 
@@ -9,7 +10,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  X
+  X,
+  Download,
+  Upload
 } from 'lucide-react';
 import { cn, formatDate } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,16 +52,82 @@ export default function LicenseList() {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this license?')) return;
     try {
-      const { error } = await supabase
-        .from('licenses')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      const response = await fetch('/api/licenses/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (!response.ok) throw new Error('Failed to delete license');
       fetchLicenses();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting license:', error);
+      alert(error.message);
     }
+  };
+
+  const handleExport = () => {
+    const csv = Papa.unparse(licenses.map(({ id, updatedAt, ...rest }) => ({
+      ...rest,
+      updatedAt: formatDate(updatedAt)
+    })));
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `licenses_inventory_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const data = results.data as any[];
+        let count = 0;
+        const licensesToInsert = [];
+        
+        for (const item of data) {
+          if (item.softwareName && item.totalSeats) {
+            licensesToInsert.push({
+              softwareName: item.softwareName,
+              key: item.key || '',
+              totalSeats: Number(item.totalSeats) || 1,
+              usedSeats: Number(item.usedSeats) || 0,
+              status: item.status || 'Active',
+              expiryDate: item.expiryDate || '',
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+
+        if (licensesToInsert.length > 0) {
+          try {
+            const response = await fetch('/api/licenses/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ payload: licensesToInsert })
+            });
+            if (!response.ok) throw new Error('Failed to import licenses');
+            
+            count = licensesToInsert.length;
+            fetchLicenses();
+          } catch (error: any) {
+            console.error('Error importing licenses:', error);
+            alert(error.message);
+          }
+        }
+
+        alert(`Successfully imported ${count} licenses.`);
+        e.target.value = '';
+      }
+    });
   };
 
   return (
@@ -74,13 +143,36 @@ export default function LicenseList() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button 
-          onClick={() => { setEditingLicense(null); setIsModalOpen(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-xl text-sm font-bold hover:bg-neutral-800 transition-colors shadow-lg shadow-neutral-200"
-        >
-          <Plus size={18} />
-          Add License
-        </button>
+        <div className="flex items-center gap-3">
+          <input
+            type="file"
+            id="license-csv-import"
+            accept=".csv"
+            className="hidden"
+            onChange={handleImport}
+          />
+          <button 
+            onClick={() => document.getElementById('license-csv-import')?.click()}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-neutral-200 rounded-xl text-sm font-bold hover:bg-neutral-50 transition-colors"
+          >
+            <Upload size={18} />
+            Import
+          </button>
+          <button 
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-neutral-200 rounded-xl text-sm font-bold hover:bg-neutral-50 transition-colors"
+          >
+            <Download size={18} />
+            Export
+          </button>
+          <button 
+            onClick={() => { setEditingLicense(null); setIsModalOpen(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-xl text-sm font-bold hover:bg-neutral-800 transition-colors shadow-lg shadow-neutral-200"
+          >
+            <Plus size={18} />
+            Add License
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -158,7 +250,10 @@ export default function LicenseList() {
       {isModalOpen && (
         <LicenseModal 
           license={editingLicense} 
-          onClose={() => setIsModalOpen(false)} 
+          onClose={() => {
+            setIsModalOpen(false);
+            fetchLicenses();
+          }} 
         />
       )}
     </div>
@@ -172,7 +267,7 @@ function LicenseModal({ license, onClose }: { license?: any, onClose: () => void
     totalSeats: license?.totalSeats || 1,
     usedSeats: license?.usedSeats || 0,
     status: license?.status || 'Active',
-    expiryDate: license?.expiryDate ? new Date(license.expiryDate.seconds * 1000).toISOString().split('T')[0] : ''
+    expiryDate: license?.expiryDate ? new Date(license.expiryDate).toISOString().split('T')[0] : ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -185,18 +280,16 @@ function LicenseModal({ license, onClose }: { license?: any, onClose: () => void
         updatedAt: new Date().toISOString()
       };
 
-      if (license) {
-        const { error } = await supabase
-          .from('licenses')
-          .update(payload)
-          .eq('id', license.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('licenses')
-          .insert([payload]);
-        if (error) throw error;
-      }
+      const response = await fetch('/api/licenses/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          licenseId: license?.id,
+          payload
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to save license');
       onClose();
     } catch (error) {
       console.error('Error saving license:', error);

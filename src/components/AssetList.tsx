@@ -35,7 +35,7 @@ export default function AssetList() {
   const { isAdmin, profile } = useAuth();
   const [assets, setAssets] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'mine'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'mine'>(isAdmin ? 'all' : 'mine');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<any>(null);
@@ -74,15 +74,16 @@ export default function AssetList() {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this asset?')) return;
     try {
-      const { error } = await supabase
-        .from('assets')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      const response = await fetch('/api/assets/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (!response.ok) throw new Error('Failed to delete asset');
       fetchAssets();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting asset:', error);
+      alert(error.message);
     }
   };
 
@@ -97,7 +98,8 @@ export default function AssetList() {
   };
 
   const handleExport = () => {
-    const csv = Papa.unparse(assets.map(({ id, updatedAt, ...rest }) => ({
+    const dataToExport = isAdmin ? assets : assets.filter(a => a.assignedTo === profile?.email);
+    const csv = Papa.unparse(dataToExport.map(({ id, updatedAt, ...rest }) => ({
       ...rest,
       updatedAt: formatDate(updatedAt)
     })));
@@ -105,7 +107,7 @@ export default function AssetList() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `assets_inventory_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `${isAdmin ? 'all' : 'my'}_assets_inventory_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -131,7 +133,7 @@ export default function AssetList() {
               type: item.type,
               serialNumber: item.serialNumber || '',
               status: item.status,
-              assignedTo: item.assignedTo || '',
+              assignedTo: isAdmin ? (item.assignedTo || '') : (profile?.email || ''),
               roles: item.roles || '',
               location: item.location || '',
               date: item.date || '',
@@ -144,15 +146,18 @@ export default function AssetList() {
 
         if (assetsToInsert.length > 0) {
           try {
-            const { error } = await supabase
-              .from('assets')
-              .insert(assetsToInsert);
+            const response = await fetch('/api/assets/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ payload: assetsToInsert })
+            });
+            if (!response.ok) throw new Error('Failed to import assets');
             
-            if (error) throw error;
             count = assetsToInsert.length;
-          } catch (error) {
+            fetchAssets();
+          } catch (error: any) {
             console.error('Error importing assets:', error);
-            alert('Error importing assets. Check console for details.');
+            alert(error.message);
           }
         }
 
@@ -188,26 +193,28 @@ export default function AssetList() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex bg-white border border-neutral-200 rounded-xl p-1 mr-2">
-            <button 
-              onClick={() => setFilterType('all')}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                filterType === 'all' ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900"
-              )}
-            >
-              All
-            </button>
-            <button 
-              onClick={() => setFilterType('mine')}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                filterType === 'mine' ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900"
-              )}
-            >
-              My Assets
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex bg-white border border-neutral-200 rounded-xl p-1 mr-2">
+              <button 
+                onClick={() => setFilterType('all')}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                  filterType === 'all' ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900"
+                )}
+              >
+                All
+              </button>
+              <button 
+                onClick={() => setFilterType('mine')}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                  filterType === 'mine' ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900"
+                )}
+              >
+                My Assets
+              </button>
+            </div>
+          )}
           <button 
             onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-neutral-200 rounded-xl text-sm font-bold hover:bg-neutral-50 transition-colors"
@@ -336,13 +343,22 @@ export default function AssetList() {
                       <div className="flex items-center justify-end gap-1">
                         {isAdmin && asset.approvalStatus === 'Pending' && (
                           <>
-                            <button 
+                             <button 
                               onClick={async () => {
-                                await supabase
-                                  .from('assets')
-                                  .update({ approvalStatus: 'Approved', updatedAt: new Date().toISOString() })
-                                  .eq('id', asset.id);
-                                fetchAssets();
+                                try {
+                                  const response = await fetch('/api/assets/update', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                      id: asset.id, 
+                                      updates: { approvalStatus: 'Approved', updatedAt: new Date().toISOString() } 
+                                    })
+                                  });
+                                  if (!response.ok) throw new Error('Failed to approve asset');
+                                  fetchAssets();
+                                } catch (error: any) {
+                                  alert(error.message);
+                                }
                               }}
                               className="p-2 hover:bg-green-50 rounded-lg text-green-600 transition-colors"
                               title="Approve Asset"
@@ -351,11 +367,20 @@ export default function AssetList() {
                             </button>
                             <button 
                               onClick={async () => {
-                                await supabase
-                                  .from('assets')
-                                  .update({ approvalStatus: 'Rejected', updatedAt: new Date().toISOString() })
-                                  .eq('id', asset.id);
-                                fetchAssets();
+                                try {
+                                  const response = await fetch('/api/assets/update', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                      id: asset.id, 
+                                      updates: { approvalStatus: 'Rejected', updatedAt: new Date().toISOString() } 
+                                    })
+                                  });
+                                  if (!response.ok) throw new Error('Failed to reject asset');
+                                  fetchAssets();
+                                } catch (error: any) {
+                                  alert(error.message);
+                                }
                               }}
                               className="p-2 hover:bg-red-50 rounded-lg text-red-600 transition-colors"
                               title="Reject Asset"
@@ -371,12 +396,14 @@ export default function AssetList() {
                         >
                           <QrCode size={16} />
                         </button>
-                        <button 
-                          onClick={() => { setEditingAsset(asset); setIsModalOpen(true); }}
-                          className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-900 transition-colors"
-                        >
-                          <Edit2 size={16} />
-                        </button>
+                        {(isAdmin || asset.assignedTo === profile?.email) && (
+                          <button 
+                            onClick={() => { setEditingAsset(asset); setIsModalOpen(true); }}
+                            className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-900 transition-colors"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        )}
                         {isAdmin && (
                           <button 
                             onClick={() => handleDelete(asset.id)}
@@ -475,6 +502,7 @@ function QRModal({ asset, onClose }: { asset: any, onClose: () => void }) {
 }
 
 function AssetModal({ asset, onClose, onSuccess }: { asset?: any, onClose: () => void, onSuccess: () => void }) {
+  const { isAdmin, profile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -485,7 +513,7 @@ function AssetModal({ asset, onClose, onSuccess }: { asset?: any, onClose: () =>
     status: asset?.status || 'In Stock',
     location: asset?.location || '',
     date: asset?.date || new Date().toISOString().split('T')[0],
-    assignedTo: asset?.assignedTo || '',
+    assignedTo: asset?.assignedTo || (isAdmin ? '' : profile?.email || ''),
     approvalStatus: asset?.approvalStatus || 'Pending',
     remark: asset?.remark || '',
     notes: asset?.notes || ''
@@ -501,18 +529,18 @@ function AssetModal({ asset, onClose, onSuccess }: { asset?: any, onClose: () =>
         updatedAt: new Date().toISOString()
       };
 
-      if (asset) {
-        const { error: submitError } = await supabase
-          .from('assets')
-          .update(payload)
-          .eq('id', asset.id);
-        if (submitError) throw submitError;
-      } else {
-        const { error: submitError } = await supabase
-          .from('assets')
-          .insert([payload]);
-        if (submitError) throw submitError;
-      }
+      const response = await fetch('/api/assets/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assetId: asset?.id,
+          payload
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to save asset');
+
       onSuccess();
     } catch (err: any) {
       console.error('Error saving asset:', err);
@@ -626,7 +654,8 @@ function AssetModal({ asset, onClose, onSuccess }: { asset?: any, onClose: () =>
             <div className="col-span-2 space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-widest text-neutral-500">Assignment Status</label>
               <select
-                className="w-full px-4 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 outline-none transition-all"
+                disabled={!isAdmin}
+                className="w-full px-4 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 outline-none transition-all disabled:bg-neutral-50 disabled:text-neutral-500"
                 value={formData.assignedTo === '' ? 'Unassigned' : 'Assigned'}
                 onChange={e => {
                   if (e.target.value === 'Unassigned') {
@@ -644,7 +673,8 @@ function AssetModal({ asset, onClose, onSuccess }: { asset?: any, onClose: () =>
               <div className="col-span-2 space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-widest text-neutral-500">Assign to (Email/ID)</label>
                 <input
-                  className="w-full px-4 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 outline-none transition-all"
+                  disabled={!isAdmin}
+                  className="w-full px-4 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 outline-none transition-all disabled:bg-neutral-50 disabled:text-neutral-500"
                   value={formData.assignedTo === 'Unassigned' ? '' : formData.assignedTo}
                   onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}
                   placeholder="user@company.com"

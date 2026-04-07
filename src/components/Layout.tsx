@@ -20,26 +20,34 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, activeTab, setActiveTab }: LayoutProps) {
-  const { profile, logout } = useAuth();
+  const { profile, logout, isAdmin } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'assets', label: 'Assets', icon: Laptop },
-    { id: 'licenses', label: 'Licenses', icon: Key },
-    { id: 'users', label: 'Users', icon: Users },
+    { id: 'licenses', label: 'Licenses', icon: Key, adminOnly: true },
+    { id: 'users', label: 'Users', icon: Users, adminOnly: true },
+    { id: 'security', label: 'Security', icon: ShieldCheck },
   ];
+
+  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
 
   return (
     <div className="flex h-screen bg-neutral-50 font-sans text-neutral-900">
       {/* Sidebar */}
       <aside 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-neutral-900 border-r border-neutral-800 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
-          !isSidebarOpen && "-translate-x-full lg:hidden"
+          "fixed inset-y-0 left-0 z-50 w-64 bg-neutral-900 border-r border-neutral-800 transition-all duration-300 ease-in-out lg:relative",
+          isSidebarOpen 
+            ? "translate-x-0 lg:w-64 lg:opacity-100" 
+            : "-translate-x-full lg:w-0 lg:opacity-0 lg:pointer-events-none"
         )}
       >
-        <div className="flex flex-col h-full">
+        <div className={cn(
+          "flex flex-col h-full transition-opacity duration-300",
+          !isSidebarOpen && "lg:opacity-0"
+        )}>
           <div className="p-6 border-b border-neutral-800 flex items-center gap-3">
             <div className="w-10 h-10 bg-[#0047AB] rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-white/5 border border-neutral-800">
               <img 
@@ -55,19 +63,19 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                 }}
               />
             </div>
-            <div>
+            <div className="whitespace-nowrap">
               <h1 className="text-lg font-bold tracking-tight text-white leading-tight">ICS IT Admin</h1>
               <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider">Directorate Inventory</p>
             </div>
           </div>
 
           <nav className="flex-1 p-4 space-y-1">
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200",
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200 whitespace-nowrap",
                   activeTab === item.id 
                     ? "bg-white text-neutral-900 shadow-xl shadow-white/10" 
                     : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
@@ -81,7 +89,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
 
           <div className="p-4 border-t border-neutral-800">
             <div className="flex items-center gap-3 p-3 bg-neutral-800/50 rounded-2xl mb-4 border border-neutral-800">
-              <div className="w-10 h-10 rounded-full bg-neutral-700 overflow-hidden ring-2 ring-neutral-800">
+              <div className="w-10 h-10 rounded-full bg-neutral-700 overflow-hidden ring-2 ring-neutral-800 shrink-0">
                 {profile?.photoURL ? (
                   <img src={profile.photoURL} alt="" referrerPolicy="no-referrer" />
                 ) : (
@@ -100,7 +108,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
             </div>
             <button 
               onClick={logout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all active:scale-95"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all active:scale-95 whitespace-nowrap"
             >
               <LogOut size={18} />
               Sign Out
@@ -109,12 +117,20 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
         </div>
       </aside>
 
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-neutral-900/50 backdrop-blur-sm lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-6 lg:px-10">
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="lg:hidden p-2 hover:bg-neutral-100 rounded-lg"
+            className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
           >
             <Menu size={20} />
           </button>

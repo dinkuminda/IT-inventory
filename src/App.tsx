@@ -34,6 +34,7 @@ function AppContent() {
       {activeTab === 'assets' && <AssetList />}
       {activeTab === 'licenses' && <LicenseList />}
       {activeTab === 'users' && <UserList />}
+      {activeTab === 'security' && <ChangePassword />}
     </Layout>
   );
 }
