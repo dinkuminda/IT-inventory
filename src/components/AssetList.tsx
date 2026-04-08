@@ -80,15 +80,16 @@ export default function AssetList() {
         body: JSON.stringify({ id })
       });
       
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to delete asset');
-      } else {
-        const text = await response.text();
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
         if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+        throw new Error('Invalid response from server');
       }
       
+      if (!response.ok) throw new Error(result.error || 'Failed to delete asset');
       fetchAssets();
     } catch (error: any) {
       console.error('Error deleting asset:', error);
@@ -162,14 +163,16 @@ export default function AssetList() {
               body: JSON.stringify({ payload: assetsToInsert })
             });
             
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              const result = await response.json();
-              if (!response.ok) throw new Error(result.error || 'Failed to import assets');
-            } else {
-              const text = await response.text();
+            const text = await response.text();
+            let result;
+            try {
+              result = JSON.parse(text);
+            } catch (e) {
               if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+              throw new Error('Invalid response from server');
             }
+            
+            if (!response.ok) throw new Error(result.error || 'Failed to import assets');
             
             count = assetsToInsert.length;
             fetchAssets();
@@ -376,14 +379,16 @@ export default function AssetList() {
                                     })
                                   });
                                   
-                                  const contentType = response.headers.get('content-type');
-                                  if (contentType && contentType.includes('application/json')) {
-                                    const result = await response.json();
-                                    if (!response.ok) throw new Error(result.error || 'Failed to approve asset');
-                                  } else {
-                                    const text = await response.text();
+                                  const text = await response.text();
+                                  let result;
+                                  try {
+                                    result = JSON.parse(text);
+                                  } catch (e) {
                                     if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+                                    throw new Error('Invalid response from server');
                                   }
+                                  
+                                  if (!response.ok) throw new Error(result.error || 'Failed to approve asset');
                                   
                                   fetchAssets();
                                 } catch (error: any) {
@@ -407,14 +412,16 @@ export default function AssetList() {
                                     })
                                   });
                                   
-                                  const contentType = response.headers.get('content-type');
-                                  if (contentType && contentType.includes('application/json')) {
-                                    const result = await response.json();
-                                    if (!response.ok) throw new Error(result.error || 'Failed to reject asset');
-                                  } else {
-                                    const text = await response.text();
+                                  const text = await response.text();
+                                  let result;
+                                  try {
+                                    result = JSON.parse(text);
+                                  } catch (e) {
                                     if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+                                    throw new Error('Invalid response from server');
                                   }
+                                  
+                                  if (!response.ok) throw new Error(result.error || 'Failed to reject asset');
                                   
                                   fetchAssets();
                                 } catch (error: any) {
@@ -577,15 +584,16 @@ function AssetModal({ asset, onClose, onSuccess }: { asset?: any, onClose: () =>
         })
       });
 
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to save asset');
-      } else {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
         if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+        throw new Error('Invalid response from server');
       }
+
+      if (!response.ok) throw new Error(result.error || 'Failed to save asset');
 
       onSuccess();
     } catch (err: any) {

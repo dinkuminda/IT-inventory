@@ -58,15 +58,16 @@ export default function LicenseList() {
         body: JSON.stringify({ id })
       });
       
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to delete license');
-      } else {
-        const text = await response.text();
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
         if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+        throw new Error('Invalid response from server');
       }
       
+      if (!response.ok) throw new Error(result.error || 'Failed to delete license');
       fetchLicenses();
     } catch (error: any) {
       console.error('Error deleting license:', error);
@@ -124,14 +125,16 @@ export default function LicenseList() {
               body: JSON.stringify({ payload: licensesToInsert })
             });
             
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              const result = await response.json();
-              if (!response.ok) throw new Error(result.error || 'Failed to import licenses');
-            } else {
-              const text = await response.text();
+            const text = await response.text();
+            let result;
+            try {
+              result = JSON.parse(text);
+            } catch (e) {
               if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+              throw new Error('Invalid response from server');
             }
+            
+            if (!response.ok) throw new Error(result.error || 'Failed to import licenses');
             
             count = licensesToInsert.length;
             fetchLicenses();
@@ -306,14 +309,16 @@ function LicenseModal({ license, onClose }: { license?: any, onClose: () => void
         })
       });
 
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to save license');
-      } else {
-        const text = await response.text();
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
         if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+        throw new Error('Invalid response from server');
       }
+
+      if (!response.ok) throw new Error(result.error || 'Failed to save license');
 
       onClose();
     } catch (error: any) {

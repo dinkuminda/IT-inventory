@@ -75,15 +75,16 @@ export default function UserList() {
         body: JSON.stringify({ id: userId })
       });
       
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to delete user');
-      } else {
-        const text = await response.text();
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
         if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+        throw new Error('Invalid response from server');
       }
       
+      if (!response.ok) throw new Error(result.error || 'Failed to delete user');
       fetchUsers();
     } catch (error: any) {
       alert(error.message);
@@ -225,14 +226,16 @@ export default function UserList() {
                     body: JSON.stringify(formData)
                   });
                   
-                  const contentType = response.headers.get('content-type');
-                  if (contentType && contentType.includes('application/json')) {
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || 'Failed to create user');
-                  } else {
-                    const text = await response.text();
+                  const text = await response.text();
+                  let result;
+                  try {
+                    result = JSON.parse(text);
+                  } catch (e) {
                     if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+                    throw new Error('Invalid response from server');
                   }
+                  
+                  if (!response.ok) throw new Error(result.error || 'Failed to create user');
                   
                   setIsModalOpen(false);
                   setFormData({ email: '', fullName: '', department: 'IT Department', password: 'Password123!' });
@@ -302,14 +305,16 @@ export default function UserList() {
                     body: JSON.stringify({ id: selectedUser.id, ...editFormData })
                   });
                   
-                  const contentType = response.headers.get('content-type');
-                  if (contentType && contentType.includes('application/json')) {
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || 'Failed to update user');
-                  } else {
-                    const text = await response.text();
+                  const text = await response.text();
+                  let result;
+                  try {
+                    result = JSON.parse(text);
+                  } catch (e) {
                     if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+                    throw new Error('Invalid response from server');
                   }
+                  
+                  if (!response.ok) throw new Error(result.error || 'Failed to update user');
                   
                   setIsEditModalOpen(false);
                   fetchUsers();
@@ -377,14 +382,16 @@ export default function UserList() {
                     body: JSON.stringify({ id: selectedUser.id, ...resetPasswordData })
                   });
                   
-                  const contentType = response.headers.get('content-type');
-                  if (contentType && contentType.includes('application/json')) {
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || 'Failed to reset password');
-                  } else {
-                    const text = await response.text();
+                  const text = await response.text();
+                  let result;
+                  try {
+                    result = JSON.parse(text);
+                  } catch (e) {
                     if (!response.ok) throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}...`);
+                    throw new Error('Invalid response from server');
                   }
+                  
+                  if (!response.ok) throw new Error(result.error || 'Failed to reset password');
                   
                   setIsResetModalOpen(false);
                   alert('Password reset successfully. User will be prompted to change it at next login.');
