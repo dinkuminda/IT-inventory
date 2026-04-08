@@ -36,6 +36,9 @@ async function startServer() {
   // Request logging - MUST be before routes
   app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      console.log('Request Body Keys:', Object.keys(req.body || {}));
+    }
     next();
   });
 
@@ -46,25 +49,6 @@ async function startServer() {
       supabaseConfigured: !!supabaseAdmin,
       env: process.env.NODE_ENV,
       time: new Date().toISOString()
-    });
-  });
-
-  // Debug GET handlers for POST routes
-  const postRoutes = [
-    "/api/admin/create-user",
-    "/api/admin/update-user",
-    "/api/admin/delete-user",
-    "/api/admin/reset-password",
-    "/api/assets/save",
-    "/api/assets/update",
-    "/api/assets/delete",
-    "/api/licenses/save",
-    "/api/licenses/delete"
-  ];
-
-  postRoutes.forEach(route => {
-    app.get(route, (req, res) => {
-      res.status(405).json({ error: "Method Not Allowed", message: "Please use POST for this endpoint" });
     });
   });
 
