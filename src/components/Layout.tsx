@@ -35,6 +35,24 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const [apiStatus, setApiStatus] = React.useState<'checking' | 'ok' | 'error'>('checking');
+
+  React.useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const response = await fetch('/api/health');
+        if (response.ok) {
+          setApiStatus('ok');
+        } else {
+          setApiStatus('error');
+        }
+      } catch (e) {
+        setApiStatus('error');
+      }
+    };
+    checkHealth();
+  }, []);
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'assets', label: 'Assets', icon: Laptop },
@@ -152,9 +170,23 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full border border-green-100">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs font-bold uppercase tracking-wider">System Live</span>
+            <div className={cn(
+              "hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors",
+              apiStatus === 'ok' ? "bg-green-50 text-green-700 border-green-100" :
+              apiStatus === 'error' ? "bg-red-50 text-red-700 border-red-100" :
+              "bg-neutral-50 text-neutral-700 border-neutral-100"
+            )}>
+              <div className={cn(
+                "w-2 h-2 rounded-full animate-pulse",
+                apiStatus === 'ok' ? "bg-green-500" :
+                apiStatus === 'error' ? "bg-red-500" :
+                "bg-neutral-500"
+              )} />
+              <span className="text-xs font-bold uppercase tracking-wider">
+                {apiStatus === 'ok' ? 'API Connected' : 
+                 apiStatus === 'error' ? 'API Offline' : 
+                 'Checking API...'}
+              </span>
             </div>
           </div>
         </header>

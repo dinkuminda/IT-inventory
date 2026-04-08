@@ -26,6 +26,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  console.log('Initializing ICS IT Admin Server...');
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+
   // Increase JSON limit for bulk imports
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -38,7 +41,31 @@ async function startServer() {
 
   // Health check
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", supabaseConfigured: !!supabaseAdmin });
+    res.json({ 
+      status: "ok", 
+      supabaseConfigured: !!supabaseAdmin,
+      env: process.env.NODE_ENV,
+      time: new Date().toISOString()
+    });
+  });
+
+  // Debug GET handlers for POST routes
+  const postRoutes = [
+    "/api/admin/create-user",
+    "/api/admin/update-user",
+    "/api/admin/delete-user",
+    "/api/admin/reset-password",
+    "/api/assets/save",
+    "/api/assets/update",
+    "/api/assets/delete",
+    "/api/licenses/save",
+    "/api/licenses/delete"
+  ];
+
+  postRoutes.forEach(route => {
+    app.get(route, (req, res) => {
+      res.status(405).json({ error: "Method Not Allowed", message: "Please use POST for this endpoint" });
+    });
   });
 
   // Admin User Creation Endpoint
@@ -242,14 +269,31 @@ async function startServer() {
     }
   });
 
+  // Catch-all for undefined API routes
+  app.all("/api/*", (req, res) => {
+    console.log(`404 API Fallthrough: ${req.method} ${req.url}`);
+    res.status(404).json({ 
+      error: "API route not found",
+      method: req.method,
+      url: req.url
+    });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+    console.log('Initializing Vite middleware...');
+    try {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+      console.log('Vite middleware initialized successfully');
+    } catch (error) {
+      console.error('Error initializing Vite middleware:', error);
+    }
   } else {
+    console.log('Running in production mode, serving static files...');
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -258,8 +302,10 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server is listening on 0.0.0.0:${PORT}`);
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error('Failed to start server:', err);
+});
