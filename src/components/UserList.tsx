@@ -291,8 +291,20 @@ export default function UserList() {
                   <input required type="password" title="Minimum 6 characters" className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-widest text-neutral-500 ml-1">Department</label>
-                  <input required className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all" value={formData.department} onChange={e => setFormData({ ...formData, department: e.target.value })} />
+                  <label className="text-xs font-bold uppercase tracking-widest text-neutral-500 ml-1">Department / Division</label>
+                  <select 
+                    required 
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-neutral-900/10 transition-all" 
+                    value={formData.department} 
+                    onChange={e => setFormData({ ...formData, department: e.target.value })}
+                  >
+                    <option value="IT Support">IT Support</option>
+                    <option value="System Admin">System Admin</option>
+                    <option value="Network admin">Network admin</option>
+                    <option value="Database Admin">Database Admin</option>
+                    <option value="DB Network & System Admin Division">DB Network & System Admin Division</option>
+                    <option value="IT Department">IT Department</option>
+                  </select>
                 </div>
                 <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-neutral-900 text-white rounded-2xl font-bold hover:bg-neutral-800 transition-all shadow-xl shadow-neutral-200 disabled:opacity-50 flex items-center justify-center gap-2">
                   {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : 'Create Account'}
@@ -334,7 +346,10 @@ export default function UserList() {
                     body: JSON.stringify({ id: selectedUser.id, ...editFormData })
                   });
                   
-                  if (!response.ok) throw new Error('Failed to update user');
+                  if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Failed to update user' }));
+                    throw new Error(errorData.error || 'Failed to update user');
+                  }
                   
                   setIsEditModalOpen(false);
                   fetchUsersData();
@@ -355,8 +370,20 @@ export default function UserList() {
                   <input required className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all" value={editFormData.fullName} onChange={e => setEditFormData({ ...editFormData, fullName: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-widest text-neutral-500 ml-1">Department</label>
-                  <input required className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all" value={editFormData.department} onChange={e => setEditFormData({ ...editFormData, department: e.target.value })} />
+                  <label className="text-xs font-bold uppercase tracking-widest text-neutral-500 ml-1">Department / Division</label>
+                  <select 
+                    required 
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-neutral-900/10 transition-all" 
+                    value={editFormData.department} 
+                    onChange={e => setEditFormData({ ...editFormData, department: e.target.value })}
+                  >
+                    <option value="IT Support">IT Support</option>
+                    <option value="System Admin">System Admin</option>
+                    <option value="Network admin">Network admin</option>
+                    <option value="Database Admin">Database Admin</option>
+                    <option value="DB Network & System Admin Division">DB Network & System Admin Division</option>
+                    <option value="IT Department">IT Department</option>
+                  </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-widest text-neutral-500 ml-1">System Role</label>
@@ -405,7 +432,10 @@ export default function UserList() {
                     body: JSON.stringify({ id: selectedUser.id, ...resetPasswordData })
                   });
                   
-                  if (!response.ok) throw new Error('Failed to reset password');
+                  if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Failed to reset password' }));
+                    throw new Error(errorData.error || 'Failed to reset password');
+                  }
                   
                   setIsResetModalOpen(false);
                   alert('Password reset successfully. User will be prompted to change it at next login.');

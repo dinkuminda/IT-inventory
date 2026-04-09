@@ -27,6 +27,11 @@ async function startServer() {
   const PORT = 3000;
 
   console.log('Initializing ICS IT Admin Server (Supabase)...');
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('WARNING: SUPABASE_SERVICE_ROLE_KEY is not set. Administrative actions (user management, asset saving) will fail.');
+  } else {
+    console.log('Supabase Service Role Key is configured.');
+  }
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -36,10 +41,31 @@ async function startServer() {
     next();
   });
 
-  app.get("/api/health", (req, res) => {
+  app.get("/api/health", async (req, res) => {
+    let supabaseStatus = "not_configured";
+    let assetsTableStatus = "unknown";
+    
+    if (supabaseAdmin) {
+      try {
+        const { error } = await supabaseAdmin.from('assets').select('id').limit(1);
+        if (error) {
+          supabaseStatus = "error";
+          assetsTableStatus = error.message;
+        } else {
+          supabaseStatus = "ok";
+          assetsTableStatus = "ok";
+        }
+      } catch (e: any) {
+        supabaseStatus = "exception";
+        assetsTableStatus = e.message;
+      }
+    }
+
     res.json({ 
       status: "ok", 
       supabaseConfigured: !!supabaseAdmin,
+      supabaseStatus,
+      assetsTableStatus,
       env: process.env.NODE_ENV,
       time: new Date().toISOString()
     });
@@ -119,6 +145,95 @@ async function startServer() {
       if (profileError) throw profileError;
       res.json({ success: true });
     } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Asset Endpoints
+  app.post("/api/assets/save", async (req, res) => {
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase Service Role Key not configured" });
+    const { assetId, payload } = req.body;
+    try {
+      if (Array.isArray(payload)) {
+        // Bulk import
+        const { error } = await supabaseAdmin.from('assets').insert(payload);
+        if (error) throw error;
+      } else if (assetId) {
+        // Update existing
+        const { error } = await supabaseAdmin.from('assets').update(payload).eq('id', assetId);
+        if (error) throw error;
+      } else {
+        // Create new
+        const { error } = await supabaseAdmin.from('assets').insert([payload]);
+        if (error) throw error;
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error saving asset:', error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/assets/update", async (req, res) => {
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase Service Role Key not configured" });
+    const { id, updates, payload } = req.body;
+    try {
+      const { error } = await supabaseAdmin.from('assets').update(updates || payload).eq('id', id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error updating asset:', error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/assets/delete", async (req, res) => {
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase Service Role Key not configured" });
+    const { id } = req.body;
+    try {
+      const { error } = await supabaseAdmin.from('assets').delete().eq('id', id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error deleting asset:', error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // License Endpoints
+  app.post("/api/licenses/save", async (req, res) => {
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase Service Role Key not configured" });
+    const { licenseId, payload } = req.body;
+    try {
+      if (Array.isArray(payload)) {
+        // Bulk import
+        const { error } = await supabaseAdmin.from('licenses').insert(payload);
+        if (error) throw error;
+      } else if (licenseId) {
+        // Update existing
+        const { error } = await supabaseAdmin.from('licenses').update(payload).eq('id', licenseId);
+        if (error) throw error;
+      } else {
+        // Create new
+        const { error } = await supabaseAdmin.from('licenses').insert([payload]);
+        if (error) throw error;
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error saving license:', error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/licenses/delete", async (req, res) => {
+    if (!supabaseAdmin) return res.status(500).json({ error: "Supabase Service Role Key not configured" });
+    const { id } = req.body;
+    try {
+      const { error } = await supabaseAdmin.from('licenses').delete().eq('id', id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error deleting license:', error);
       res.status(400).json({ error: error.message });
     }
   });

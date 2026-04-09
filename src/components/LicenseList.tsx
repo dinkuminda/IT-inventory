@@ -122,7 +122,10 @@ export default function LicenseList() {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to save license');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to save license' }));
+        throw new Error(errorData.error || 'Failed to save license');
+      }
       
       setIsModalOpen(false);
       setEditingLicense(null);

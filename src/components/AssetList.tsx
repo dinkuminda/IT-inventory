@@ -165,7 +165,10 @@ export default function AssetList() {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to save asset');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to save asset' }));
+        throw new Error(errorData.error || 'Failed to save asset');
+      }
       
       setIsModalOpen(false);
       setEditingAsset(null);
@@ -544,6 +547,20 @@ export default function AssetList() {
                       value={formData.assignedTo}
                       onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase tracking-widest text-neutral-500 ml-1">Role / Division</label>
+                    <select 
+                      className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-neutral-900/10 transition-all"
+                      value={formData.roles}
+                      onChange={e => setFormData({ ...formData, roles: e.target.value })}
+                    >
+                      <option value="IT Support">IT Support</option>
+                      <option value="System Admin">System Admin</option>
+                      <option value="Network admin">Network admin</option>
+                      <option value="Database Admin">Database Admin</option>
+                      <option value="DB Network & System Admin Division">DB Network & System Admin Division</option>
+                    </select>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold uppercase tracking-widest text-neutral-500 ml-1">Location</label>
