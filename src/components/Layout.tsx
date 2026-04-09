@@ -40,13 +40,19 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
   React.useEffect(() => {
     const checkHealth = async () => {
       try {
+        console.log('Checking API health...');
         const response = await fetch('/api/health');
         if (response.ok) {
+          const data = await response.json();
+          console.log('API Health OK:', data);
           setApiStatus('ok');
         } else {
+          const text = await response.text();
+          console.error('API Health Error:', response.status, text);
           setApiStatus('error');
         }
       } catch (e) {
+        console.error('API Health Exception:', e);
         setApiStatus('error');
       }
     };

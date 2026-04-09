@@ -15,12 +15,10 @@ import {
 import { 
   Laptop, 
   Key, 
-  AlertCircle, 
   CheckCircle2, 
   Clock,
   ArrowUpRight,
   ArrowDownRight,
-  ShieldCheck,
   XCircle,
   Package
 } from 'lucide-react';
@@ -55,8 +53,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000); // Poll every 5s for "real-time" feel
-    return () => clearInterval(interval);
+    
+    // Subscribe to changes
+    const assetsChannel = supabase.channel('dashboard-assets')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assets' }, fetchData)
+      .subscribe();
+      
+    const licensesChannel = supabase.channel('dashboard-licenses')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'licenses' }, fetchData)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(assetsChannel);
+      supabase.removeChannel(licensesChannel);
+    };
   }, []);
 
   const myAssets = assets.filter(a => a.assignedTo === profile?.email);
@@ -298,4 +308,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

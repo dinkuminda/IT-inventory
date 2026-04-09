@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLIC_KEY = import.meta.env.VITE_SUPABASE_PUBLIC_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLIC_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_PUBLIC_KEY) {
-  console.error("Supabase environment variables are missing! Please check your AI Studio Settings.");
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables. Please check your .env file.');
 }
 
-export const supabase = createClient(SUPABASE_URL || '', SUPABASE_PUBLIC_KEY || '');
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');

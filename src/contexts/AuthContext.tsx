@@ -21,14 +21,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check active sessions and sets the user
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
       setLoading(false);
     });
 
-    // Listen for changes on auth state (logged in, signed out, etc.)
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -43,15 +45,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (!error && data) {
-      setProfile(data);
-    } else {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.warn('Profile fetch error:', error.message);
+        setProfile({ role: 'employee' });
+      } else {
+        setProfile(data);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
       setProfile({ role: 'employee' });
     }
   };
@@ -59,38 +67,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updatePassword = async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
-
-    // After successful password update, clear the flag in profiles
+    
+    // Clear needsPasswordChange flag
     if (user) {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ needsPasswordChange: false })
         .eq('id', user.id);
-      
       if (profileError) throw profileError;
       await fetchProfile(user.id);
     }
   };
 
   const login = async (email: string, pass: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ 
-      email: email.trim(), 
-      password: pass.trim() 
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: pass.trim(),
     });
     if (error) throw error;
   };
 
   const register = async (email: string, pass: string, name: string) => {
     const trimmedEmail = email.trim();
-    const { error } = await supabase.auth.signUp({ 
-      email: trimmedEmail, 
+    const { data, error } = await supabase.auth.signUp({
+      email: trimmedEmail,
       password: pass.trim(),
       options: {
-        data: { full_name: name }
-      }
+        data: {
+          full_name: name,
+        },
+      },
     });
     
     if (error) throw error;
+    
+    if (data.user) {
+      // Profile is usually created via trigger, but we can upsert to be sure
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert([{
+          id: data.user.id,
+          email: trimmedEmail,
+          displayName: name,
+          role: 'employee',
+          needsPasswordChange: false
+        }]);
+      if (profileError) console.error('Profile creation error:', profileError);
+      await fetchProfile(data.user.id);
+    }
   };
 
   const logout = async () => {
